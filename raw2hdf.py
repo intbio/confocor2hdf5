@@ -12,7 +12,7 @@
 # GNU General Public License v2 for more details.
 # Cheers, Satary.
 #
-import sys, os,glob,platform,time
+import sys, os,platform,time
 from shutil import copyfile
 from PyQt5 import QtGui, QtCore, QtWidgets
 QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
@@ -89,7 +89,7 @@ class FileMenu(QtWidgets.QWidget):
             else:
                 ids[t.measurement_identifier] [t.channel]=name
                 
-        for ex_id, data in ids.iteritems(): 
+        for ex_id, data in ids.items(): 
             if len(data)==2:
                 self.laneWidgetList.append(fileMenuItem(data[0],data[1],fileMenu=self,mainwindow=self.parent))
                 self.folderLayout.addWidget(self.laneWidgetList[-1])      
@@ -112,12 +112,16 @@ class FileMenu(QtWidgets.QWidget):
             event.accept()
             links = []
             for url in event.mimeData().urls():
-                if '.raw' in unicode(url.toLocalFile()):
-                    links.append(unicode(url.toLocalFile()))
+                if '.raw' in str(url.toLocalFile()):
+                    links.append(str(url.toLocalFile()))
             if links:
                 self.loadFiles(links)
         else:
             event.ignore()    
+    def closeEvent(self, event):
+        for widget in self.laneWidgetList:
+            widget.eW.close()
+            
  
 
 class fileMenuItem(QtWidgets.QWidget):
@@ -144,8 +148,8 @@ class fileMenuItem(QtWidgets.QWidget):
         
         self.Layout.addWidget(timestamp,0,0)
         self.Layout.addWidget(self.r_button,0,1)
-    def runTask(self):
         self.eW=exportWidget(self.ch0_filename,self.ch1_filename)
+    def runTask(self):        
         self.eW.show()
         
 class exportWidget(QtWidgets.QWidget):
@@ -155,24 +159,29 @@ class exportWidget(QtWidgets.QWidget):
     def __init__(self,ch0_filename,ch1_filename,parent=None):
         super(exportWidget, self).__init__(parent)
         self.Layout = QtWidgets.QGridLayout(self)
-        self.Layout.setSpacing(0)
-        self.Layout.setContentsMargins(0,0,0,0)
+        #self.Layout.setSpacing(0)
+        #self.Layout.setContentsMargins(0,0,0,0)
         self.filenames=[ch0_filename,ch1_filename]
+        self.setWindowTitle('ch1: %s \nch2: %s'%(os.path.basename(ch0_filename), os.path.basename(ch1_filename))) 
         #self.Layout.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTop)
         
         label=QtWidgets.QLabel('Sample name*:')
+        label.setFixedWidth(80)
         self.Layout.addWidget(label,0,0)
         self.sampleNameWidget=QtWidgets.QLineEdit()
+        self.sampleNameWidget.setToolTip('Insert sample name here \n e.g. Human nucleosome + FACT')
         self.Layout.addWidget(self.sampleNameWidget,0,1)
         
         label=QtWidgets.QLabel('Buffer name*:')
         self.Layout.addWidget(label,1,0)
         self.bufferNameWidget=QtWidgets.QLineEdit()
+        self.bufferNameWidget.setToolTip('Insert buffer name here \n e.g. TE 150mM')
         self.Layout.addWidget(self.bufferNameWidget,1,1)
         
         label=QtWidgets.QLabel('Author*:')
         self.Layout.addWidget(label,2,0)
         self.authorWidget=QtWidgets.QLineEdit()
+        self.authorWidget.setToolTip('Insert your name here')
         self.Layout.addWidget(self.authorWidget,2,1)
         
         label=QtWidgets.QLabel('Donor name:')
@@ -188,6 +197,7 @@ class exportWidget(QtWidgets.QWidget):
         label=QtWidgets.QLabel('Description*:')
         self.Layout.addWidget(label,0,2)
         self.descriptionWidget=QtWidgets.QLineEdit()
+        self.descriptionWidget.setToolTip('This field should UNIQUELY \n describe the experiment')
         self.Layout.addWidget(self.descriptionWidget,0,3)
         
         label=QtWidgets.QLabel('Affiliation:')
@@ -225,9 +235,12 @@ class exportWidget(QtWidgets.QWidget):
         
         self.r_button = QtWidgets.QPushButton('Save h5 file')
         self.r_button.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        #self.r_button.setFixedWidth(50)
         self.r_button.setStyleSheet("text-align: left;padding: 3px")    
-        #self.r_button.clicked.connect(self.runTask)
+        self.r_button.setFixedWidth(80)
+        self.r_button.setFixedHeight(30)
+        
+        label=QtWidgets.QLabel('All fields marked with asterisk (*) must be filled in')
+        self.Layout.addWidget(label,5,1,1,2)
         
         
         self.Layout.addWidget(self.r_button,5,0)
@@ -323,12 +336,13 @@ class exportWidget(QtWidgets.QWidget):
         filename=QtWidgets.QFileDialog.getSaveFileName(self,'Save smFRET data file',filter="hdf5 files (*.h5)")        
         if filename[0]:
             phc.hdf5.save_photon_hdf5(data, h5_fname=filename[0], overwrite=True)
+            self.close()
         
         
 def main():
     
     app = QtWidgets.QApplication(sys.argv)
-    workDir=unicode(QtCore.QDir.currentPath())
+    workDir=str(QtCore.QDir.currentPath())
     ex = FileMenu(workDir)
     ex.show()
     sys.exit(app.exec_())
