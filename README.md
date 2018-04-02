@@ -7,7 +7,7 @@ Application purpouse is to convert smFRET raw data files (cw excitation, single 
 
 Exported files than can be read with [fretbursts](https://github.com/OpenSMFS/FRETBursts).
 
-See [example notebook](confocor2hdf5.ipynb)
+If you hate GUIs see [example notebook](confocor2hdf5.ipynb)
 
 ## Using through conda (use python 3.*)
 - `conda install -c conda-forge phconvert pyqt `
