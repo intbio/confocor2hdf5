@@ -43,8 +43,15 @@ class FileMenu(QtWidgets.QWidget):
     '''
     Provides Widget for opening multiple files
     '''
-    def __init__(self,workDir,parent=None):
+    def __init__(self,workDir=None,parent=None):        
         super(FileMenu, self).__init__(parent)
+        
+        self.settings = QtCore.QSettings()
+        try:
+            self.last_dir_opened = self.settings.value("last_folder", ".")
+        except:
+            self.last_dir_opened = QtCore.QDir.currentPath()
+        
         self.setAcceptDrops(True)
         self.filters="confocor raw files (*.raw)"
         self.parent=parent
@@ -74,9 +81,12 @@ class FileMenu(QtWidgets.QWidget):
     
 
     def openFile(self):
-        filename=QtWidgets.QFileDialog.getOpenFileNames(self,'Open RAW files',filter="Confocor RAW files (*.raw)")
+        filename=QtWidgets.QFileDialog.getOpenFileNames(self,'Open RAW files',directory=self.last_dir_opened,
+                                                        filter="Confocor RAW files (*.raw)")
         if filename[0]:
             self.loadFiles(filename[0])
+        self.last_dir_opened=QtWidgets.QFileDialog().directory().absolutePath()
+        self.settings.setValue("last_folder", QtWidgets.QFileDialog().directory().absolutePath())
             
     def loadFiles(self, filelist):
         result={}
@@ -197,6 +207,7 @@ class exportWidget(QtWidgets.QWidget):
         label=QtWidgets.QLabel('Description*:')
         self.Layout.addWidget(label,0,2)
         self.descriptionWidget=QtWidgets.QLineEdit()
+        self.descriptionWidget.setText( os.path.basename(ch0_filename)[:-4])
         self.descriptionWidget.setToolTip('This field should UNIQUELY \n describe the experiment')
         self.Layout.addWidget(self.descriptionWidget,0,3)
         
@@ -318,6 +329,15 @@ class exportWidget(QtWidgets.QWidget):
         identity = dict(
             author=author,
             author_affiliation=author_affiliation)
+        
+        sample = dict(
+            sample_name = sample_name,
+            buffer_name = buffer_name,
+            dye_names = dye_names)
+        
+        provenance = dict(
+            filename=self.filenames[0],
+            creation_time = creation_date(self.filenames[0]))
 
         measurement_specs = dict(
             measurement_type = 'smFRET',
@@ -331,7 +351,9 @@ class exportWidget(QtWidgets.QWidget):
             description=description,
             photon_data = photon_data,
             setup=setup,
-            identity=identity
+            identity=identity,
+            sample=sample,
+            provenance=provenance
         )
         filename=QtWidgets.QFileDialog.getSaveFileName(self,'Save smFRET data file',filter="hdf5 files (*.h5)")        
         if filename[0]:
@@ -342,8 +364,10 @@ class exportWidget(QtWidgets.QWidget):
 def main():
     
     app = QtWidgets.QApplication(sys.argv)
-    workDir=str(QtCore.QDir.currentPath())
-    ex = FileMenu(workDir)
+    app.setOrganizationName("Biological Faculty")
+    app.setOrganizationDomain("bioeng.org")
+    app.setApplicationName("Raw2HDF")
+    ex = FileMenu()
     ex.show()
     sys.exit(app.exec_())
 

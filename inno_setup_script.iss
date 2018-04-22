@@ -21,7 +21,6 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DisableProgramGroupPage=yes
-LicenseFile=GPL2
 OutputBaseFilename=setup
 Compression=lzma
 SolidCompression=yes
