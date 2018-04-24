@@ -22,21 +22,30 @@ import numpy as np
 
 
 
-def creation_date(path_to_file):
+def creation_date(path_to_file,formated=True):
     """
     Try to get the date that a file was created, falling back to when it was
     last modified if that isn't possible.
     """
     if platform.system() == 'Windows':
-        return time.strftime("%d.%m.%Y \n%H:%M:%S",time.gmtime(os.path.getctime(path_to_file)))
+        if formated:
+            return time.strftime("%d.%m.%Y \n%H:%M:%S",time.gmtime(os.path.getctime(path_to_file)))
+        else:
+            return os.path.getctime(path_to_file)
     else:
         stat = os.stat(path_to_file)
         try:
-            return time.strftime("%d.%m.%Y \n%H:%M:%S",time.gmtime(stat.st_birthtime))
+            if formated:
+                return time.strftime("%d.%m.%Y \n%H:%M:%S",time.gmtime(stat.st_birthtime))
+            else:
+                return os.path.getctime(stat.st_birthtime)
         except AttributeError:
             # We're probably on Linux. No easy way to get creation dates here,
             # so we'll settle for when its content was last modified.
-            return time.strftime("%d.%m.%Y \n%H:%M:%S", time.gmtime(stat.st_mtime))
+            if formated:
+                return time.strftime("%d.%m.%Y \n%H:%M:%S", time.gmtime(stat.st_mtime))
+            else:
+                return os.path.getctime(stat.st_mtime)
             
 
 class FileMenu(QtWidgets.QWidget):
@@ -56,6 +65,8 @@ class FileMenu(QtWidgets.QWidget):
         self.filters="confocor raw files (*.raw)"
         self.parent=parent
         self.laneWidgetList=[]
+        self.sort_list=[]
+        self.ch0_name_list=[]
 
         self.foldersScrollArea = QtWidgets.QScrollArea(self)
         self.foldersScrollArea.setWidgetResizable(True)
@@ -89,20 +100,21 @@ class FileMenu(QtWidgets.QWidget):
         self.settings.setValue("last_folder", QtWidgets.QFileDialog().directory().absolutePath())
             
     def loadFiles(self, filelist):
-        result={}
         ids={}
         for name in filelist:
             t=ConfoCor3Raw(name)
-            result[name]=[t.measurement_identifier,t.channel]
             if not (t.measurement_identifier in ids):
                 ids[t.measurement_identifier]={t.channel:name}
             else:
                 ids[t.measurement_identifier] [t.channel]=name
                 
         for ex_id, data in ids.items(): 
-            if len(data)==2:
+            if (len(data)==2) and not (data[0] in self.ch0_name_list):
                 self.laneWidgetList.append(fileMenuItem(data[0],data[1],fileMenu=self,mainwindow=self.parent))
-                self.folderLayout.addWidget(self.laneWidgetList[-1])      
+                self.ch0_name_list.append(data[0])
+                self.sort_list.append(creation_date(data[0],formated=False))
+        #sorting by date
+        [self.folderLayout.addWidget(x) for _,x in sorted(zip(self.sort_list,self.laneWidgetList))]
                  
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls:
