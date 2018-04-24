@@ -8,7 +8,8 @@ Application purpouse is to convert smFRET raw data files (cw excitation, single 
 Exported files than can be read with [fretbursts](https://github.com/OpenSMFS/FRETBursts).
 
 If you hate GUIs see [example notebook](confocor2hdf5.ipynb)
-
+## Windows users (as ZEN works only on windows)
+Download latest installer from [releases page](https://github.com/intbio/confocor2hdf5/releases)
 ## Using through conda (use python 3.*)
 - `conda install -c conda-forge phconvert pyqt `
 - clone this repo
