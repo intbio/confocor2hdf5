@@ -82,7 +82,7 @@ class FileMenu(QtWidgets.QWidget):
         
         
         #self.setMaximumWidth(500)
-        self.setGeometry(400, 200, 300, 400)
+        self.setGeometry(600, 500, 600, 400)
         self.setWindowTitle('RAW to hdf5') 
     
 
@@ -109,7 +109,7 @@ class FileMenu(QtWidgets.QWidget):
                 self.ch0_name_list.append(data[0])
                 self.sort_list.append(creation_date(data[0],formated=False))
         #sorting by date
-        [self.folderLayout.addWidget(x) for _,x in sorted(zip(self.sort_list,self.laneWidgetList))]
+        [self.folderLayout.addWidget(x) for _,x in sorted(zip(self.sort_list,self.laneWidgetList))[::-1]]
                  
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls:
@@ -420,7 +420,8 @@ class exportWidget(QtWidgets.QWidget):
             last_dir_saved = self.settings.value("last_save_folder", ".")
         except:
             last_dir_saved = QtCore.QDir.currentPath()
-        fname=os.path.join(last_dir_saved,"%s.h5"%description)
+        fname=os.path.join(last_dir_saved,"%s.h5"%self.sampleNameWidget.currentText())
+        print(fname)
         
         filename=QtWidgets.QFileDialog.getSaveFileName(self,'Save smFRET data file',directory=fname,filter="hdf5 files (*.h5)")        
         
