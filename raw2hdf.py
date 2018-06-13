@@ -12,14 +12,14 @@
 # GNU General Public License v2 for more details.
 # Cheers, Satary.
 #
-import sys, os,platform,time
-from shutil import copyfile
+import sys, os
+#from shutil import copyfile
 from PyQt5 import QtGui, QtCore, QtWidgets
 QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
 import phconvert as phc
 from fcsfiles import ConfoCor3Raw
 import numpy as np
-
+from autoCompBox import autoCompBox
 
 
 def creation_date(path_to_file,formated=True):
@@ -27,26 +27,18 @@ def creation_date(path_to_file,formated=True):
     Try to get the date that a file was created, falling back to when it was
     last modified if that isn't possible.
     """
-    if platform.system() == 'Windows':
-        if formated:
-            return time.strftime("%d.%m.%Y \n%H:%M:%S",time.gmtime(os.path.getctime(path_to_file)))
-        else:
-            return os.path.getctime(path_to_file)
+    if formated:
+        return QtCore.QFileInfo(path_to_file).lastModified().toLocalTime().toString('dd.MM.yyyy\nhh:mm:ss')
     else:
-        stat = os.stat(path_to_file)
-        try:
-            if formated:
-                return time.strftime("%d.%m.%Y \n%H:%M:%S",time.gmtime(stat.st_birthtime))
-            else:
-                return stat.st_birthtime
-        except AttributeError:
-            # We're probably on Linux. No easy way to get creation dates here,
-            # so we'll settle for when its content was last modified.
-            if formated:
-                return time.strftime("%d.%m.%Y \n%H:%M:%S", time.gmtime(stat.st_mtime))
-            else:
-                return stat.st_mtime
-            
+        return QtCore.QFileInfo(path_to_file).lastModified().toMSecsSinceEpoch()
+    
+def GetHumanReadable(size,precision=2):
+    suffixes=['B','KB','MB','GB','TB']
+    suffixIndex = 0
+    while size > 1024 and suffixIndex < 4:
+        suffixIndex += 1 #increment the index of the suffix
+        size = size/1024.0 #apply the division
+    return "%.*f%s"%(precision,size,suffixes[suffixIndex])
 
 class FileMenu(QtWidgets.QWidget):
     '''
@@ -56,6 +48,7 @@ class FileMenu(QtWidgets.QWidget):
         super(FileMenu, self).__init__(parent)
         
         self.settings = QtCore.QSettings()
+        #self.settings.setValue("sampleNames", ['FACT','notFact'])
         try:
             self.last_dir_opened = self.settings.value("last_folder", ".")
         except:
@@ -76,6 +69,7 @@ class FileMenu(QtWidgets.QWidget):
         self.folderLayout = QtWidgets.QGridLayout(self.foldersScrollAreaWidget)
         self.folderLayout.setAlignment(QtCore.Qt.AlignTop)
         self.foldersScrollArea.setWidget(self.foldersScrollAreaWidget)
+        self.folderLayout.addWidget(header())
         
        
         
@@ -86,7 +80,8 @@ class FileMenu(QtWidgets.QWidget):
         self.mainLayout.addWidget(openFiles)
         self.mainLayout.addWidget(self.foldersScrollArea)
         
-        self.setMaximumWidth(500)
+        
+        #self.setMaximumWidth(500)
         self.setGeometry(400, 200, 300, 400)
         self.setWindowTitle('RAW to hdf5') 
     
@@ -110,7 +105,7 @@ class FileMenu(QtWidgets.QWidget):
                 
         for ex_id, data in ids.items(): 
             if (len(data)==2) and not (data[0] in self.ch0_name_list):
-                self.laneWidgetList.append(fileMenuItem(data[0],data[1],fileMenu=self,mainwindow=self.parent))
+                self.laneWidgetList.append(fileMenuItem(data[0],data[1],fileMenu=self,mainwindow=self))
                 self.ch0_name_list.append(data[0])
                 self.sort_list.append(creation_date(data[0],formated=False))
         #sorting by date
@@ -142,10 +137,33 @@ class FileMenu(QtWidgets.QWidget):
             event.ignore()    
     def closeEvent(self, event):
         for widget in self.laneWidgetList:
-            widget.eW.close()
+            try:
+                widget.eW.close()
+            except:
+                pass
             
  
 
+class header(QtWidgets.QWidget):
+    def __init__(self):
+        super(header, self).__init__()
+        self.Layout = QtWidgets.QGridLayout(self)
+        self.Layout.setSpacing(0)
+        self.Layout.setContentsMargins(0,0,0,0)
+        self.Layout.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTop)
+        timestamp=QtWidgets.QLabel('Date Time')   
+        timestamp.setFixedWidth(100)
+          
+        size=QtWidgets.QLabel('Size')  
+        size.setFixedWidth(100)   
+                     
+        r_button = QtWidgets.QLabel('Name')  
+        r_button.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        
+        self.Layout.addWidget(timestamp,0,0)
+        self.Layout.addWidget(size,0,1)
+        self.Layout.addWidget(r_button,0,2)
+        
 class fileMenuItem(QtWidgets.QWidget):
     nameChangedSignal = QtCore.pyqtSignal(QtWidgets.QWidget)
     def __init__(self,ch0_filename,ch1_filename,mainwindow=None,fileMenu=None):
@@ -160,7 +178,14 @@ class fileMenuItem(QtWidgets.QWidget):
         self.Layout.setSpacing(0)
         self.Layout.setContentsMargins(0,0,0,0)
         self.Layout.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTop)
-        timestamp=QtWidgets.QLabel(creation_date(self.ch0_filename))
+        timestamp=QtWidgets.QLabel(creation_date(self.ch0_filename))   
+        timestamp.setFixedWidth(100)
+        timestamp.setStyleSheet("border: 1px solid grey")
+          
+        size=QtWidgets.QLabel('%s\n%s'%(GetHumanReadable(QtCore.QFileInfo(self.ch0_filename).size()),
+                                        GetHumanReadable(QtCore.QFileInfo(self.ch1_filename).size())))
+        size.setStyleSheet("border: 1px solid grey")
+        size.setFixedWidth(100)                
         self.r_button = QtWidgets.QPushButton('ch1: %s \nch2: %s'%(os.path.basename(self.ch0_filename), os.path.basename(self.ch1_filename)))
         self.r_button.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         #self.r_button.setFixedWidth(50)
@@ -169,16 +194,20 @@ class fileMenuItem(QtWidgets.QWidget):
         
         
         self.Layout.addWidget(timestamp,0,0)
-        self.Layout.addWidget(self.r_button,0,1)
-        self.eW=exportWidget(self.ch0_filename,self.ch1_filename)
-    def runTask(self):        
+        self.Layout.addWidget(size,0,1)
+        self.Layout.addWidget(self.r_button,0,2)
+        
+    def runTask(self):   
+        self.eW=exportWidget(self.ch0_filename,self.ch1_filename,self.mainwindow.settings)     
         self.eW.show()
         
 class exportWidget(QtWidgets.QWidget):
     '''
     Provides Widget for opening multiple files
     '''
-    def __init__(self,ch0_filename,ch1_filename,parent=None):
+    def __init__(self,ch0_filename,ch1_filename,settings,parent=None):
+        self.settings=settings
+
         super(exportWidget, self).__init__(parent)
         self.Layout = QtWidgets.QGridLayout(self)
         #self.Layout.setSpacing(0)
@@ -188,47 +217,62 @@ class exportWidget(QtWidgets.QWidget):
         #self.Layout.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTop)
         
         label=QtWidgets.QLabel('Sample name*:')
-        label.setFixedWidth(80)
+        label.setWordWrap(True)
+        #label.setFixedWidth(80)
         self.Layout.addWidget(label,0,0)
-        self.sampleNameWidget=QtWidgets.QLineEdit()
+        self.sampleNameWidget=autoCompBox(self.settings,'sampleNames')
+        self.sampleNameWidget.setEditable(True)
         self.sampleNameWidget.setToolTip('Insert sample name here \n e.g. Human nucleosome + FACT')
         self.Layout.addWidget(self.sampleNameWidget,0,1)
         
         label=QtWidgets.QLabel('Buffer name*:')
+        label.setWordWrap(True)
         self.Layout.addWidget(label,1,0)
-        self.bufferNameWidget=QtWidgets.QLineEdit()
+        self.bufferNameWidget=autoCompBox(self.settings,'bufferNames')
+        self.bufferNameWidget.setEditable(True)
         self.bufferNameWidget.setToolTip('Insert buffer name here \n e.g. TE 150mM')
         self.Layout.addWidget(self.bufferNameWidget,1,1)
         
         label=QtWidgets.QLabel('Author*:')
+        label.setWordWrap(True)
         self.Layout.addWidget(label,2,0)
-        self.authorWidget=QtWidgets.QLineEdit()
+        self.authorWidget=autoCompBox(self.settings,'authorNames')
+        self.authorWidget.setEditable(True)
         self.authorWidget.setToolTip('Insert your name here')
         self.Layout.addWidget(self.authorWidget,2,1)
         
         label=QtWidgets.QLabel('Donor name:')
+        label.setWordWrap(True)
         self.Layout.addWidget(label,3,0)
-        self.donorNameWidget=QtWidgets.QLineEdit('Cy3')
+        self.donorNameWidget=autoCompBox(self.settings,'donorNames')
+        self.donorNameWidget.setEditable(True)
         self.Layout.addWidget(self.donorNameWidget,3,1)
         
         label=QtWidgets.QLabel('Acceptor name:')
+        label.setWordWrap(True)
         self.Layout.addWidget(label,4,0)
-        self.acceptorNameWidget=QtWidgets.QLineEdit('Cy5')
+        self.acceptorNameWidget=autoCompBox(self.settings,'acceptorNames')
+        self.acceptorNameWidget.setEditable(True)
         self.Layout.addWidget(self.acceptorNameWidget,4,1)
         
-        label=QtWidgets.QLabel('Description*:')
-        self.Layout.addWidget(label,0,2)
-        self.descriptionWidget=QtWidgets.QLineEdit()
-        self.descriptionWidget.setText( os.path.basename(ch0_filename)[:-4])
-        self.descriptionWidget.setToolTip('This field should UNIQUELY \n describe the experiment')
-        self.Layout.addWidget(self.descriptionWidget,0,3)
+        label=QtWidgets.QLabel('Press right mouse btn. to remove item from list')
+        label.setWordWrap(True)
+        self.Layout.addWidget(label,0,2,1,2)
+        #self.descriptionWidget=autoCompBox(self.settings,'sampleNames')
+        #self.descriptionWidget.setEditable(True)
+        #self.descriptionWidget.setText( os.path.basename(ch0_filename)[:-4])
+        #self.descriptionWidget.setToolTip('This field should UNIQUELY \n describe the experiment')
+        #self.Layout.addWidget(self.descriptionWidget,0,3)
         
         label=QtWidgets.QLabel('Affiliation:')
+        label.setWordWrap(True)
         self.Layout.addWidget(label,1,2)
-        self.affiliationWidget=QtWidgets.QLineEdit('MSU, Biology Faculty')
+        self.affiliationWidget=autoCompBox(self.settings,'affiliationNames')
+        self.affiliationWidget.setEditable(True)
         self.Layout.addWidget(self.affiliationWidget,1,3)
         
         label=QtWidgets.QLabel('Excitation w.l.:')
+        label.setWordWrap(True)
         self.Layout.addWidget(label,2,2)
         self.excitationWLWidget=QtWidgets.QSpinBox()
         self.excitationWLWidget.setMinimum(400)
@@ -238,6 +282,7 @@ class exportWidget(QtWidgets.QWidget):
         self.Layout.addWidget(self.excitationWLWidget,2,3)
         
         label=QtWidgets.QLabel('Donor w.l.:')
+        label.setWordWrap(True)
         self.Layout.addWidget(label,3,2)
         self.donorWLWidget=QtWidgets.QSpinBox()
         self.donorWLWidget.setMinimum(400)
@@ -247,6 +292,7 @@ class exportWidget(QtWidgets.QWidget):
         self.Layout.addWidget(self.donorWLWidget,3,3)
         
         label=QtWidgets.QLabel('Acceptor w.l.:')
+        label.setWordWrap(True)
         self.Layout.addWidget(label,4,2)
         self.acceptorWLWidget=QtWidgets.QSpinBox()
         self.acceptorWLWidget.setMinimum(400)
@@ -259,16 +305,17 @@ class exportWidget(QtWidgets.QWidget):
         self.r_button = QtWidgets.QPushButton('Save h5 file')
         self.r_button.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.r_button.setStyleSheet("text-align: left;padding: 3px")    
-        self.r_button.setFixedWidth(80)
+        self.r_button.setFixedWidth(100)
         self.r_button.setFixedHeight(30)
         
         label=QtWidgets.QLabel('All fields marked with asterisk (*) must be filled in')
+        label.setWordWrap(True)
         self.Layout.addWidget(label,5,1,1,2)
         
         
         self.Layout.addWidget(self.r_button,5,0)
         self.r_button.clicked.connect(self.save)
-        
+
     def save(self):
         ch1raw=ConfoCor3Raw(self.filenames[0])
         ch2raw=ConfoCor3Raw(self.filenames[1])
@@ -292,23 +339,23 @@ class exportWidget(QtWidgets.QWidget):
         detectors=df_sorted[1].astype('uint8')
         # [0,1,2,3,4,5,6,7] - timestamps
         # [0,1,1,0,1,0,1,1] - acceptor mask
-
         try:
-            description = self.descriptionWidget.text().encode('ascii')
+            description = self.sampleNameWidget.currentText().encode('ascii')
+           
 
-            author = self.authorWidget.text().encode('ascii')
-            author_affiliation = self.affiliationWidget.text().encode('ascii')
+            author = self.authorWidget.currentText().encode('ascii')
+            author_affiliation = self.affiliationWidget.currentText().encode('ascii')
 
-            sample_name = self.sampleNameWidget.text().encode('ascii')
-            buffer_name = self.bufferNameWidget.text().encode('ascii')
-            dye_names = '%s, %s'%(self.donorNameWidget.text().encode('ascii'),self.acceptorNameWidget.text().encode('ascii'))   # Comma separates names of fluorophores
+            sample_name = self.sampleNameWidget.currentText().encode('ascii')
+            buffer_name = self.bufferNameWidget.currentText().encode('ascii')
+            dye_names = '%s, %s'%(self.donorNameWidget.currentText().encode('ascii'),self.acceptorNameWidget.currentText().encode('ascii'))   # Comma separates names of fluorophores
         except:
             error_dialog = QtWidgets.QErrorMessage(self)
             error_dialog.setWindowModality(QtCore.Qt.WindowModal)
             error_dialog.showMessage('Only ASCII symbols allowed (only English)')
             return
         
-        if not description or not author or not sample_name or not buffer_name:
+        if not author or not sample_name or not buffer_name:
             error_dialog = QtWidgets.QErrorMessage(self)
             error_dialog.setWindowModality(QtCore.Qt.WindowModal)
             error_dialog.showMessage('Fill all fields marked with asterix')
@@ -346,10 +393,12 @@ class exportWidget(QtWidgets.QWidget):
             sample_name = sample_name,
             buffer_name = buffer_name,
             dye_names = dye_names)
-        
-        provenance = dict(
-            filename=self.filenames[0],
-            creation_time = creation_date(self.filenames[0]))
+        try:
+            provenance = dict(
+                filename=self.filenames[0].encode('ascii'),
+                creation_time = creation_date(self.filenames[0]).encode('ascii'))
+        except:
+            provenance={}
 
         measurement_specs = dict(
             measurement_type = 'smFRET',
@@ -367,10 +416,19 @@ class exportWidget(QtWidgets.QWidget):
             sample=sample,
             provenance=provenance
         )
-        filename=QtWidgets.QFileDialog.getSaveFileName(self,'Save smFRET data file',filter="hdf5 files (*.h5)")        
+        try:
+            last_dir_saved = self.settings.value("last_save_folder", ".")
+        except:
+            last_dir_saved = QtCore.QDir.currentPath()
+        fname=os.path.join(last_dir_saved,"%s.h5"%description)
+        
+        filename=QtWidgets.QFileDialog.getSaveFileName(self,'Save smFRET data file',directory=fname,filter="hdf5 files (*.h5)")        
+        
         if filename[0]:
             phc.hdf5.save_photon_hdf5(data, h5_fname=filename[0], overwrite=True)
+            self.settings.setValue("last_save_folder", os.path.dirname(filename[0]))
             self.close()
+        
         
         
 def main():
