@@ -27,7 +27,7 @@ class autoCompBox(QComboBox):
             
     def rearrange(self,index):
         itemlist=[self.itemText(i) for i in range(self.count())]
-        itemlist.insert(0,itemlist.pop(i))
+        itemlist.insert(0,itemlist.pop(index))
         self.settings.setValue(self.key, itemlist)
 
     def event(self, event):
