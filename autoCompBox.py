@@ -16,19 +16,25 @@ class autoCompBox(QComboBox):
         except:
             pass
         self.v=self.view()
-        self.v.pressed.connect(self.lol)
+        self.v.pressed.connect(self.remove)
+        self.currentIndexChanged.connect(self.rearrange)
         
-    def lol(self, view):
+    def remove(self, view):
         if QApplication.mouseButtons()==Qt.RightButton:
             self.removeItem(view.row())
             itemlist=[self.itemText(i) for i in range(self.count())]
             self.settings.setValue(self.key, itemlist)
+            
+    def rearrange(self,index):
+        itemlist=[self.itemText(i) for i in range(self.count())]
+        itemlist.insert(0,itemlist.pop(i))
+        self.settings.setValue(self.key, itemlist)
 
     def event(self, event):
         if (event.type() == QEvent.KeyPress and event.key() == Qt.Key_Return) or (event.type() == 9):
             if not self.currentText().upper() in [self.itemText(i).upper() for i in range(self.count())]:
                 self.addItem(self.currentText())
-                itemlist=[self.itemText(i) for i in range(self.count())][-10:]
+                itemlist=[self.itemText(i) for i in range(self.count())][-20:]
                 self.settings.setValue(self.key, itemlist)
 
         return QComboBox.event(self, event)
