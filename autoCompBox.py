@@ -26,9 +26,10 @@ class autoCompBox(QComboBox):
             self.settings.setValue(self.key, itemlist)
             
     def rearrange(self,index):
-        itemlist=[self.itemText(i) for i in range(self.count())]
-        itemlist.insert(0,itemlist.pop(index))
-        self.settings.setValue(self.key, itemlist)
+        if self.count()!=0:
+            itemlist=[self.itemText(i) for i in range(self.count())]
+            itemlist.insert(0,itemlist.pop(index))
+            self.settings.setValue(self.key, itemlist)
 
     def event(self, event):
         if (event.type() == QEvent.KeyPress and event.key() == Qt.Key_Return) or (event.type() == 9):
