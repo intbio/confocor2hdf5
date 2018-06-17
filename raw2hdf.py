@@ -102,7 +102,7 @@ class FileMenu(QtWidgets.QWidget):
                 ids[t.measurement_identifier]={t.channel:name}
             else:
                 ids[t.measurement_identifier] [t.channel]=name
-                
+        print(ids)
         for ex_id, data in ids.items(): 
             if (len(data)==2) and not (data[0] in self.ch0_name_list):
                 self.laneWidgetList.append(fileMenuItem(data[0],data[1],fileMenu=self,mainwindow=self))
