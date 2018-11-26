@@ -58,8 +58,10 @@ class FileMenu(QtWidgets.QWidget):
         self.filters="confocor raw files (*.raw)"
         self.parent=parent
         self.laneWidgetList=[]
-        self.sort_list=[]
+        self.sort_by_time=[]
         self.ch0_name_list=[]
+        self.dataFrame=[]
+        self.numFiles=0
 
         self.foldersScrollArea = QtWidgets.QScrollArea(self)
         self.foldersScrollArea.setWidgetResizable(True)
@@ -102,14 +104,17 @@ class FileMenu(QtWidgets.QWidget):
                 ids[t.measurement_identifier]={t.channel:name}
             else:
                 ids[t.measurement_identifier] [t.channel]=name
-        print(ids)
+        
         for ex_id, data in ids.items(): 
             if (len(data)==2) and not (data[0] in self.ch0_name_list):
-                self.laneWidgetList.append(fileMenuItem(data[0],data[1],fileMenu=self,mainwindow=self))
+                menuitem=fileMenuItem(data[0],data[1],fileMenu=self,mainwindow=self)
+                self.laneWidgetList.append(menuitem)
                 self.ch0_name_list.append(data[0])
-                self.sort_list.append(creation_date(data[0],formated=False))
+                self.sort_by_time.append(creation_date(data[0],formated=False))
+                self.dataFrame.append([len(self.ch0_name_list),creation_date(data[0],formated=False),os.path.basename(data[0]),menuitem])
         #sorting by date
-        [self.folderLayout.addWidget(x) for _,x in sorted(zip(self.sort_list,self.laneWidgetList))[::-1]]
+        print(self.dataFrame)
+        [self.folderLayout.addWidget(x) for _,x in sorted(zip(self.sort_by_time,self.laneWidgetList))[::-1]]
                  
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls:
@@ -189,19 +194,22 @@ class fileMenuItem(QtWidgets.QWidget):
         self.r_button = QtWidgets.QPushButton('ch1: %s \nch2: %s'%(os.path.basename(self.ch0_filename), os.path.basename(self.ch1_filename)))
         self.r_button.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         #self.r_button.setFixedWidth(50)
-        self.r_button.setStyleSheet("text-align: left;padding: 3px")    
+        self.r_button.setStyleSheet("text-align: left;padding: 3px;background-color: red")    
         self.r_button.clicked.connect(self.runTask)
-        
+               
         
         self.Layout.addWidget(timestamp,0,0)
         self.Layout.addWidget(size,0,1)
         self.Layout.addWidget(self.r_button,0,2)
-        
+    def markSaved(self):
+        self.r_button.setStyleSheet("text-align: left;padding: 3px;background-color: green")
     def runTask(self):   
-        self.eW=exportWidget(self.ch0_filename,self.ch1_filename,self.mainwindow.settings)     
+        self.eW=exportWidget(self.ch0_filename,self.ch1_filename,self.mainwindow.settings)   
+        self.eW.saved.connect(self.markSaved)  
         self.eW.show()
         
 class exportWidget(QtWidgets.QWidget):
+    saved = QtCore.pyqtSignal()
     '''
     Provides Widget for opening multiple files
     '''
@@ -426,8 +434,9 @@ class exportWidget(QtWidgets.QWidget):
         filename=QtWidgets.QFileDialog.getSaveFileName(self,'Save smFRET data file',directory=fname,filter="hdf5 files (*.h5)")        
         
         if filename[0]:
-            phc.hdf5.save_photon_hdf5(data, h5_fname=filename[0], overwrite=True)
+            phc.hdf5.save_photon_hdf5(data, h5_fname=str(filename[0]), overwrite=True)
             self.settings.setValue("last_save_folder", os.path.dirname(filename[0]))
+            self.saved.emit()
             self.close()
         
         
